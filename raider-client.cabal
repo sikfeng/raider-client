@@ -1,0 +1,85 @@
+cabal-version: 2.2
+
+-- This file has been generated from package.yaml by hpack version 0.35.2.
+--
+-- see: https://github.com/sol/hpack
+
+name:           raider-client
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/sikfeng/raider-client#readme>
+homepage:       https://github.com/sikfeng/raider-client#readme
+bug-reports:    https://github.com/sikfeng/raider-client/issues
+author:         Cheong Sik Feng
+maintainer:     sikfeng@gmail.com
+copyright:      2024 Cheong Sik Feng
+license:        BSD-3-Clause
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    CHANGELOG.md
+
+source-repository head
+  type: git
+  location: https://github.com/sikfeng/raider-client
+
+library
+  exposed-modules:
+      Lib
+  other-modules:
+      Paths_raider_client
+  autogen-modules:
+      Paths_raider_client
+  hs-source-dirs:
+      src
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
+  build-depends:
+      aeson
+    , base >=4.7 && <5
+    , bytestring
+    , hslogger
+    , optparse-applicative
+    , text
+    , websockets
+  default-language: Haskell2010
+
+executable raider-client-exe
+  main-is: Main.hs
+  other-modules:
+      Paths_raider_client
+  autogen-modules:
+      Paths_raider_client
+  hs-source-dirs:
+      app
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      aeson
+    , base >=4.7 && <5
+    , bytestring
+    , hslogger
+    , optparse-applicative
+    , raider-client
+    , text
+    , websockets
+  default-language: Haskell2010
+
+test-suite raider-client-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_raider_client
+  autogen-modules:
+      Paths_raider_client
+  hs-source-dirs:
+      test
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      aeson
+    , base >=4.7 && <5
+    , bytestring
+    , hslogger
+    , optparse-applicative
+    , raider-client
+    , text
+    , websockets
+  default-language: Haskell2010
