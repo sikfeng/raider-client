@@ -67,9 +67,6 @@ runWebSocketClient Config{..} = do
     case result of
         Left e -> do
             errorM "WebSocket" $ "Connection failed: " ++ show (e :: SomeException)
-            infoM "WebSocket" "Retrying in 5 seconds..."
-            threadDelay 5000000  -- 5 seconds
-            runWebSocketClient Config{..}
         Right _ -> return ()
 
 createMessage :: T.Text -> T.Text -> Params -> Message
