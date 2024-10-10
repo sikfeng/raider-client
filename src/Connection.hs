@@ -89,6 +89,7 @@ wsApp conn = do
             , createMessage mainRepoDir "ask_repo" (AskRepoParams "What files are in the repository?")
             , createMessage mainRepoDir "init_external_repo_agent" (InitExternalRepoParams "/home/sikfeng/raid/auto-sw-dev/auto-code-rover/")
             , createMessage mainRepoDir "get_external_repo_agents" GetExternalRepoParams
+            , createMessage mainRepoDir "generate_subtasks" (GenerateSubtasksParams "Add a websocket method that will run multiple subtasks sequentially.")
             ]
 
     -- Send messages sequentially and wait for responses
