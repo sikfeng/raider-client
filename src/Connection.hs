@@ -10,13 +10,14 @@ module Connection
     ) where
 
 import Control.Monad (forever)
-import Data.Aeson (Value, ToJSON(..), object, (.=), encode, eitherDecode)
+import Data.Aeson (Value(..), ToJSON(..), object, (.=), encode, eitherDecode)
 import qualified Data.Text as T
 import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Network.WebSockets as WS
 import Control.Exception (try, finally, SomeException)
 import System.Log.Logger
 import Control.Concurrent (threadDelay)
+import qualified Data.Aeson.KeyMap as KM
 
 data Config = Config
     { host :: String
@@ -82,36 +83,42 @@ wsApp conn = do
 
     let mainRepoDir = "/home/sikfeng/raid/auto-sw-dev/tmp_repo/"
 
-    -- Send init_agent_manager message
-    let initMessage = createMessage mainRepoDir "init_agent_manager" (InitParams 10)
-    sendJSON conn (toJSON initMessage)
-    infoM "WebSocket" "init_agent_manager message sent."
+    -- Create a list of messages to send
+    let messages =
+            [ createMessage mainRepoDir "init_agent_manager" (InitParams 10)
+            , createMessage mainRepoDir "ask_repo" (AskRepoParams "What files are in the repository?")
+            , createMessage mainRepoDir "init_external_repo_agent" (InitExternalRepoParams "/home/sikfeng/raid/auto-sw-dev/auto-code-rover/")
+            , createMessage mainRepoDir "get_external_repo_agents" GetExternalRepoParams
+            ]
 
-    -- Send ask_repo message
-    let askRepoMessage = createMessage mainRepoDir "ask_repo" (AskRepoParams "What files are in the repository?")
-    sendJSON conn (toJSON askRepoMessage)
-    infoM "WebSocket" "ask_repo message sent."
+    -- Send messages sequentially and wait for responses
+    mapM_ (sendAndWaitForResponse conn) messages
 
-    -- Send init_external_repo_agent message
-    let initExternalRepoMessage = createMessage mainRepoDir "init_external_repo_agent" (InitExternalRepoParams "/home/sikfeng/raid/auto-sw-dev/auto-code-rover/")
-    sendJSON conn (toJSON initExternalRepoMessage)
-    infoM "WebSocket" "init_external_repo_agent message sent."
-
-    -- Send get_external_repo_agent message
-    let getExternalRepoMessage = createMessage mainRepoDir "get_external_repo_agents" GetExternalRepoParams
-    sendJSON conn (toJSON getExternalRepoMessage)
-    infoM "WebSocket" "get_external_repo_agents message sent."
-
-    forever (receiveAndLogJSON conn) `finally` do
-        infoM "WebSocket" "Closing connection."
-        WS.sendClose conn ("Bye!" :: T.Text)
+    infoM "WebSocket" "All messages sent and responses received."
+    WS.sendClose conn ("Bye!" :: T.Text)
 
 sendJSON :: WS.Connection -> Value -> IO ()
 sendJSON conn = WS.sendTextData conn . encode
 
-receiveAndLogJSON :: WS.Connection -> IO ()
-receiveAndLogJSON conn = do
+sendAndWaitForResponse :: WS.Connection -> Message -> IO ()
+sendAndWaitForResponse conn msg = do
+    sendJSON conn (toJSON msg)
+    infoM "WebSocket" $ "Sent: " ++ T.unpack (method msg)
+    waitForEndOfMessage conn
+
+waitForEndOfMessage :: WS.Connection -> IO ()
+waitForEndOfMessage conn = do
     receivedMsg <- WS.receiveData conn
     case eitherDecode (BL.fromStrict receivedMsg) of
         Left err -> errorM "WebSocket" $ "Failed to parse received message as JSON: " ++ err
-        Right json -> infoM "WebSocket" $ "Received: " ++ show (json :: Value)
+        Right json -> case json of
+            Object obj -> case KM.lookup "<END_OF_MESSAGE>" obj of
+                Just _ -> return ()  -- End of message received, exit the function
+                Nothing -> case KM.lookup "<PING>" obj of
+                    Just _ -> waitForEndOfMessage conn  -- Ping received, continue waiting
+                    Nothing -> do
+                        infoM "WebSocket" $ "Received: " ++ show json
+                        waitForEndOfMessage conn  -- Continue waiting for end of message
+            _ -> do
+                infoM "WebSocket" $ "Received: " ++ show json
+                waitForEndOfMessage conn  -- Continue waiting for end of message
