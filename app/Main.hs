@@ -6,7 +6,7 @@ import Control.Monad (forever)
 import Data.Aeson (Value, ToJSON(..), object, (.=), encode, eitherDecode)
 import qualified Data.Text as T
 import qualified Data.ByteString.Lazy.Char8 as BL
-import Network.WebSockets
+import qualified Network.WebSockets as WS
 import Control.Exception (try, finally, SomeException)
 import System.Log.Logger
 import Options.Applicative
@@ -24,11 +24,13 @@ data Message = Message
     , params :: Params
     }
 
-data Params = Params
-    { timeout :: Int
-    }
+data Params
+    = InitParams { timeout :: Int }
+    | AskRepoParams { query :: T.Text }
+    | InitExternalRepoParams { repoDir :: T.Text }
+    | GetExternalRepoParams
 
-instance ToJSON Main.Message where
+instance ToJSON Message where
     toJSON Message{..} = object
         [ "main_repo_dir" .= mainRepoDir
         , "method" .= method
@@ -36,14 +38,15 @@ instance ToJSON Main.Message where
         ]
 
 instance ToJSON Params where
-    toJSON Params{..} = object
-        [ "timeout" .= timeout
-        ]
+    toJSON (InitParams{..}) = object [ "timeout" .= timeout ]
+    toJSON (AskRepoParams{..}) = object [ "query" .= query ]
+    toJSON (InitExternalRepoParams{..}) = object [ "repo_dir" .= repoDir ]
+    toJSON GetExternalRepoParams = object []
 
 runWebSocketClient :: Config -> IO ()
 runWebSocketClient Config{..} = do
     infoM "WebSocket" $ "Connecting to " ++ host ++ ":" ++ show port ++ T.unpack path
-    result <- try $ runClient host port (T.unpack path) wsApp
+    result <- try $ WS.runClient host port (T.unpack path) wsApp
     case result of
         Left e -> do
             errorM "WebSocket" $ "Connection failed: " ++ show (e :: SomeException)
@@ -52,24 +55,49 @@ runWebSocketClient Config{..} = do
             runWebSocketClient Config{..}
         Right _ -> return ()
 
-wsApp :: Connection -> IO ()
+createMessage :: T.Text -> T.Text -> Params -> Message
+createMessage mainRepoDir method params = Message
+    { mainRepoDir = mainRepoDir
+    , method = method
+    , params = params
+    }
+
+wsApp :: WS.Connection -> IO ()
 wsApp conn = do
     infoM "WebSocket" "Connected!"
-    
-    let message = Message "/home/sikfeng/raid/auto-sw-dev/tmp_repo/" "init_agent_manager" (Params 10)
-    sendJSON conn (toJSON message)
-    infoM "WebSocket" "JSON data sent."
+
+    let mainRepoDir = "/home/sikfeng/raid/auto-sw-dev/tmp_repo/"
+
+    -- Send init_agent_manager message
+    let initMessage = createMessage mainRepoDir "init_agent_manager" (InitParams 10)
+    sendJSON conn (toJSON initMessage)
+    infoM "WebSocket" "init_agent_manager message sent."
+
+    -- Send ask_repo message
+    let askRepoMessage = createMessage mainRepoDir "ask_repo" (AskRepoParams "What files are in the repository?")
+    sendJSON conn (toJSON askRepoMessage)
+    infoM "WebSocket" "ask_repo message sent."
+
+    -- Send init_external_repo_agent message
+    let initExternalRepoMessage = createMessage mainRepoDir "init_external_repo_agent" (InitExternalRepoParams "/home/sikfeng/raid/auto-sw-dev/auto-code-rover/")
+    sendJSON conn (toJSON initExternalRepoMessage)
+    infoM "WebSocket" "init_external_repo_agent message sent."
+
+    -- Send get_external_repo_agent message
+    let getExternalRepoMessage = createMessage mainRepoDir "get_external_repo_agents" GetExternalRepoParams
+    sendJSON conn (toJSON getExternalRepoMessage)
+    infoM "WebSocket" "get_external_repo_agents message sent."
 
     forever (receiveAndLogJSON conn) `finally` do
         infoM "WebSocket" "Closing connection."
-        sendClose conn ("Bye!" :: T.Text)
+        WS.sendClose conn ("Bye!" :: T.Text)
 
-sendJSON :: Connection -> Value -> IO ()
-sendJSON conn = sendTextData conn . encode
+sendJSON :: WS.Connection -> Value -> IO ()
+sendJSON conn = WS.sendTextData conn . encode
 
-receiveAndLogJSON :: Connection -> IO ()
+receiveAndLogJSON :: WS.Connection -> IO ()
 receiveAndLogJSON conn = do
-    receivedMsg <- receiveData conn
+    receivedMsg <- WS.receiveData conn
     case eitherDecode (BL.fromStrict receivedMsg) of
         Left err -> errorM "WebSocket" $ "Failed to parse received message as JSON: " ++ err
         Right (json :: Value) -> infoM "WebSocket" $ "Received: " ++ show json
