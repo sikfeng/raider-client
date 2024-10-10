@@ -18,8 +18,6 @@ import Control.Exception (try, finally, SomeException)
 import System.Log.Logger
 import Control.Concurrent (threadDelay)
 
-import qualified Data.Text as T
-
 data Config = Config
     { host :: String
     , port :: Int
