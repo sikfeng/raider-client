@@ -41,6 +41,8 @@ ghc-options:
 
 library:
   source-dirs: src
+  exposed-modules:
+    - Connection
 
 executables:
   raider-client-exe:
