@@ -38,6 +38,11 @@ data Params
     | AskRepoParams { query :: T.Text }
     | InitExternalRepoParams { repoDir :: T.Text }
     | GetExternalRepoParams
+    | DisableExternalRepoParams { repoDir :: T.Text }
+    | EnableExternalRepoParams { repoDir :: T.Text }
+    | GenerateSubtasksParams { objective :: T.Text }
+    | RunSubtaskParams { subtask :: T.Text }
+    | ShutdownParams
 
 instance ToJSON Message where
     toJSON Message{..} = object
@@ -51,6 +56,11 @@ instance ToJSON Params where
     toJSON (AskRepoParams{..}) = object [ "query" .= query ]
     toJSON (InitExternalRepoParams{..}) = object [ "repo_dir" .= repoDir ]
     toJSON GetExternalRepoParams = object []
+    toJSON (DisableExternalRepoParams{..}) = object [ "repo_dir" .= repoDir ]
+    toJSON (EnableExternalRepoParams{..}) = object [ "repo_dir" .= repoDir ]
+    toJSON (GenerateSubtasksParams{..}) = object [ "objective" .= objective ]
+    toJSON (RunSubtaskParams{..}) = object [ "subtask" .= subtask ]
+    toJSON ShutdownParams = object []
 
 runWebSocketClient :: Config -> IO ()
 runWebSocketClient Config{..} = do
