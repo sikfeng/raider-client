@@ -27,7 +27,6 @@ library
   exposed-modules:
       Connection
   other-modules:
-      Lib
       Paths_raider_client
   autogen-modules:
       Paths_raider_client
